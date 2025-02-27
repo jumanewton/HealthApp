@@ -1,27 +1,52 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:healthmate/components/my_drawer.dart';
-import 'package:healthmate/components/my_list_tile.dart';
-import 'package:healthmate/components/my_posts_button.dart';
-import 'package:healthmate/components/my_textfield.dart';
-import 'package:healthmate/database/firestore.dart';
+import 'package:healthmate/pages/medication_page.dart';
+import 'package:healthmate/pages/calendar_page.dart';
+import 'package:healthmate/pages/chat_page.dart';
 
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
 
-class HomePage extends StatelessWidget {
-  HomePage({super.key});
-  // firestore access
-  final FirestoreDatabase firestore = FirestoreDatabase();
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
 
-  final TextEditingController postController = TextEditingController();
-  // post message
-  void postMessage() {
-    // post only if the textfield is not empty
-    if (postController.text.isNotEmpty) {
-      String message = postController.text;
-      firestore.addPost(message);
+class _HomePageState extends State<HomePage> {
+  int _selectedIndex = 0; // Default to Home Page
+  String username = "Newton"; // Replace with dynamic user fetching if needed
+
+  // Function to determine the greeting based on system time
+  String getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) {
+      return "Good Morning, $username";
+    } else if (hour < 18) {
+      return "Good Afternoon, $username";
+    } else {
+      return "Good Evening, $username";
     }
-    // clear the controller
-    postController.clear();
+  }
+
+  void _onItemTapped(int index) {
+    switch (index) {
+      case 0:
+        Navigator.pushReplacement(
+            context, MaterialPageRoute(builder: (context) => const HomePage()));
+        break;
+      case 1:
+        Navigator.pushReplacement(
+            context, MaterialPageRoute(builder: (context) => const MedicationPage()));
+        break;
+      case 2:
+        Navigator.pushReplacement(
+            context, MaterialPageRoute(builder: (context) => const MyCalendar()));
+        break;
+      case 3:
+        Navigator.pushReplacement(
+            context, MaterialPageRoute(builder: (context) => const ChatPage()));
+        break;
+    }
   }
 
   @override
@@ -29,78 +54,65 @@ class HomePage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.primary,
       appBar: AppBar(
-        title: const Text('W A L L'),
+        title: const Text('HealthMate'),
         backgroundColor: Colors.transparent,
         foregroundColor: Theme.of(context).colorScheme.inversePrimary,
         centerTitle: true,
         elevation: 0,
-        // actions: [
-        //   // log out button
-        //   IconButton(
-        //     onPressed: logOut,
-        //     icon: const Icon(Icons.logout),
-        //   )
-        // ],
       ),
-      drawer: MyDrawer(),
-      body: Column(
+      drawer: const MyDrawer(),
+      body: ListView(
+        padding: const EdgeInsets.all(16.0),
         children: [
-          // textfield for the user to type a post
-          Padding(
-            padding: const EdgeInsets.all(25.0),
-            child: Row(
-              children: [
-                // textfield
-                Expanded(
-                  child: MyTextField(
-                      hintText: 'Say something...',
-                      obscureText: false,
-                      controller: postController),
-                ),
-                // post button
-                PostButton(onTap: postMessage),
-              ],
+          Text(
+            getGreeting(), // Display dynamic greeting
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            "Here are some health tips for you today:",
+            style: TextStyle(fontSize: 16),
+          ),
+          const SizedBox(height: 20),
+          Card(
+            margin: const EdgeInsets.all(10),
+            child: ListTile(
+              leading: const Icon(Icons.health_and_safety, color: Colors.blue),
+              title: const Text('5 Tips for a Healthy Lifestyle'),
+              subtitle: const Text('Stay hydrated, eat well, and get enough sleep.'),
             ),
           ),
-          // post list
-          StreamBuilder(
-              stream: firestore.getPostStream(),
-              builder: (context, snapshot) {
-                // show loading circle
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(),
-                  );
-                }
-                // get all the posts
-                final posts = snapshot.data!.docs;
-                // no data?
-                if (snapshot.data == null || posts.isEmpty) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(25.0),
-                      child: Text('No posts... Post something!'),
-                    ),
-                  );
-                }
-                // return as a list
-                return Expanded(
-                  child: ListView.builder(
-                    itemCount: posts.length,
-                    itemBuilder: (context, index) {
-                      // get individual post
-                      final post = posts[index];
-                      // get data from each post
-                      String message = post['postMessage'];
-                      String userEmail = post['userEmail'];
-                      Timestamp timestamp = post['Timestamp'];
-                      // return as a ListTile
-                      return MyListTile(title: message, subtitle: userEmail);
-                    },
-                  ),
-                );
-              })
+          Card(
+            margin: const EdgeInsets.all(10),
+            child: ListTile(
+              leading: const Icon(Icons.vaccines, color: Colors.green),
+              title: const Text('Flu Season Alert!'),
+              subtitle: const Text('Don’t forget to get your flu shot this year.'),
+            ),
+          ),
         ],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.medical_services),
+            label: 'Medication',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.calendar_today),
+            label: 'Calendar',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.chat),
+            label: 'Chat',
+          ),
+        ],
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
       ),
     );
   }

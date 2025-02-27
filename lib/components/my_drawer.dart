@@ -62,12 +62,12 @@ class MyDrawer extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(left: 25.0),
                 child: ListTile(
-                  leading: const Icon(Icons.group),
-                  title: const Text('U S E R S'),
+                  leading: const Icon(Icons.settings),
+                  title: const Text('S E T T I N G S'),
                   onTap: () {
                     Navigator.pop(context);
                     // navigate to the users page
-                    Navigator.pushNamed(context, '/users_page');
+                    Navigator.pushNamed(context, '/settings_page');
                   },
                 ),
               ),
