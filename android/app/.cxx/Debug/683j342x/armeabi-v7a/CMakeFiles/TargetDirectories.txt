@@ -1,0 +1,2 @@
+C:/Users/baras/Desktop/healthmate/android/app/.cxx/Debug/683j342x/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/Users/baras/Desktop/healthmate/android/app/.cxx/Debug/683j342x/armeabi-v7a/CMakeFiles/rebuild_cache.dir
