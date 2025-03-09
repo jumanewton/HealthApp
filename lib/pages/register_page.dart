@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:healthmate/components/my_button.dart';
 import 'package:healthmate/components/my_textfield.dart';
 import 'package:healthmate/helper/helper_functions.dart';
+import 'package:healthmate/pages/multi_step_form.dart';
 
 class RegisterPage extends StatefulWidget {
   final void Function()? onTap;
@@ -22,7 +23,7 @@ class _RegisterPageState extends State<RegisterPage> {
   TextEditingController confirmPwController = TextEditingController();
 
   Future<void> register() async {
-    // show a loading circle
+    // Show a loading circle
     showDialog(
       context: context,
       builder: (context) {
@@ -32,31 +33,45 @@ class _RegisterPageState extends State<RegisterPage> {
       },
     );
 
-    // check if the passwords match
+    // Check if the passwords match
     if (passwordController.text != confirmPwController.text) {
-      // pop the loading circle
-      Navigator.pop(context);
-      // show the error message
+      Navigator.pop(context); // Pop the loading indicator
       displayError(context, "Passwords do not match");
-    } else {
-      // try creating the user
-      try {
-        // create the user
-        UserCredential userCredential = await FirebaseAuth.instance
-            .createUserWithEmailAndPassword(
-                email: emailController.text, password: passwordController.text);
-        // add the user to the could firestore database
-        createUserDocument(userCredential);
-        // pop the loading circle
-        if (context.mounted) Navigator.pop(context);
-      } on FirebaseAuthException catch (e) {
-        // pop the loading circle
-        Navigator.pop(context);
-        // show the error message
-        displayError(context, e.message!);
+      return;
+    }
+
+    try {
+      // Create the user
+      UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+        email: emailController.text,
+        password: passwordController.text,
+      );
+
+      // Get the user ID
+      String userId = userCredential.user!.uid;
+
+      // Add the user to the Firestore database
+      await createUserDocument(userCredential);
+
+      // Pop the loading indicator
+      if (context.mounted) Navigator.pop(context);
+
+      // Navigate to the MultiStepForm page
+      if (context.mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MultiStepForm(userId: userId),
+          ),
+        );
       }
+    } on FirebaseAuthException catch (e) {
+      Navigator.pop(context); // Pop the loading indicator
+      displayError(context, e.message!);
     }
   }
+
 
   // create a user document in the cloud firestore database
   Future<void> createUserDocument(UserCredential userCredential) async {
@@ -91,7 +106,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 const SizedBox(height: 25),
                 // app name
                 Text(
-                  'M I N I M A L',
+                  'H E A L T H M A T E',
                   style: TextStyle(
                     fontSize: 30,
                   ),

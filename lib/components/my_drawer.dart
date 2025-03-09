@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 
 class MyDrawer extends StatelessWidget {
   const MyDrawer({super.key});
-  void logOut() {
-    // log out the user
-    FirebaseAuth.instance.signOut();
+
+  // Logout function
+  void _logout(BuildContext context) async {
+    await FirebaseAuth.instance.signOut();
+    Navigator.pushReplacementNamed(context, '/onboarding');
   }
 
   @override
@@ -36,7 +38,7 @@ class MyDrawer extends StatelessWidget {
                   title: const Text('H O M E'),
                   onTap: () {
                     Navigator.pop(context);
-                    // navigate to the home page
+                    // Navigate to the home page
                     Navigator.pushNamed(context, '/home_page');
                   },
                 ),
@@ -51,14 +53,14 @@ class MyDrawer extends StatelessWidget {
                   title: const Text('P R O F I L E'),
                   onTap: () {
                     Navigator.pop(context);
-                    // navigate to the profile page
+                    // Navigate to the profile page
                     Navigator.pushNamed(context, '/profile_page');
                   },
                 ),
               ),
               const SizedBox(height: 25),
 
-              // Users tile
+              // Settings tile
               Padding(
                 padding: const EdgeInsets.only(left: 25.0),
                 child: ListTile(
@@ -66,7 +68,7 @@ class MyDrawer extends StatelessWidget {
                   title: const Text('S E T T I N G S'),
                   onTap: () {
                     Navigator.pop(context);
-                    // navigate to the users page
+                    // Navigate to the settings page
                     Navigator.pushNamed(context, '/settings_page');
                   },
                 ),
@@ -82,8 +84,8 @@ class MyDrawer extends StatelessWidget {
               title: const Text('L O G  O U T'),
               onTap: () {
                 Navigator.pop(context);
-                // log out the user
-                logOut();
+                // Log out the user
+                _logout(context);
               },
             ),
           ),

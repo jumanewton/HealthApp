@@ -3,10 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:healthmate/components/my_button.dart';
 import 'package:healthmate/components/my_textfield.dart';
 import 'package:healthmate/helper/helper_functions.dart';
+import 'package:healthmate/pages/home_page.dart';
+import 'package:healthmate/pages/multi_step_form.dart';
+import 'package:healthmate/utility/firestore_utils.dart';
+import 'package:healthmate/helper/alert_utils.dart';
 
 
 class LoginPage extends StatefulWidget {
-
   final void Function()? onTap;
 
   const LoginPage({super.key, required this.onTap});
@@ -16,34 +19,70 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  // text controllers
-  TextEditingController emailController = TextEditingController();
-  TextEditingController passwordController = TextEditingController();
+  // Text controllers
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  bool _isLoading = false;
 
-  void login() async{
-    // show a loading circle  
+  void login() async {
+    if (_isLoading) return; // Prevent multiple taps
+
+    setState(() => _isLoading = true);
+
+    // Show loading indicator
     showDialog(
       context: context,
-      builder: (context) {
-        return Center(
-          child: CircularProgressIndicator(),
-        );
-      },
+      barrierDismissible: false, // Prevent closing while loading
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
     );
-    // try to sign in
+
     try {
-      // sign in
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: emailController.text, password: passwordController.text);
-      // pop the loading circle
-      if(context.mounted){
-        Navigator.pop(context);
+      // Sign in the user
+      UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(
+              email: emailController.text.trim(),
+              password: passwordController.text.trim());
+
+      // Fetch user data from Firestore
+      var userData = await FirestoreUtils.getUserData(userCredential.user!.email!);
+
+      // Pop the loading indicator
+      if (context.mounted) Navigator.pop(context);
+
+      // Navigate based on profile completion
+      if (userData != null && userData['username'] != null) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomePage()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => MultiStepForm(userId: userCredential.user!.uid)),
+        );
       }
-    } on FirebaseAuthException catch(e) {
-      // pop the loading circle
-      Navigator.pop(context);
-      // show the error message
-      displayError(context, e.code);
+    } on FirebaseAuthException catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      displayError(context, e.message ?? "Login failed. Please try again.");
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void resetPassword() async {
+    if (emailController.text.isEmpty) {
+      displayError(context, "Enter your email to reset password.");
+      return;
+    }
+
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(
+          email: emailController.text.trim());
+      displayMessage(context, "Password reset link sent to your email.");
+    } catch (e) {
+      displayError(context, "Error: ${e.toString()}");
     }
   }
 
@@ -57,51 +96,58 @@ class _LoginPageState extends State<LoginPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // logo
               Icon(
                 Icons.person,
                 size: 80,
                 color: Theme.of(context).colorScheme.inversePrimary,
               ),
               const SizedBox(height: 25),
-              // app name
-              Text(
-                'M I N I M A L',
-                style: TextStyle(
-                  fontSize: 30,
-                ),
+              const Text(
+                'H E A L T H M A T E',
+                style: TextStyle(fontSize: 30),
               ),
               const SizedBox(height: 50),
-              // email input
+
+              // Email input
               MyTextField(
                   hintText: "Email",
                   obscureText: false,
                   controller: emailController),
 
-              // password input
               const SizedBox(height: 10),
+              // Password input
               MyTextField(
                   hintText: "Password",
                   obscureText: true,
                   controller: passwordController),
-              // forgot password button
+
               const SizedBox(height: 10),
+              // Forgot password button
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  Text(
-                    'Forgot Password?',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.secondary,
+                  GestureDetector(
+                    onTap: resetPassword,
+                    child: Text(
+                      'Forgot Password?',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.secondary,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
               ),
-              // Login button
+
               const SizedBox(height: 25),
-              MyButton(text: 'Login', onTap: login),
-              // forgot password button
+              // Login button (disable when loading)
+              MyButton(
+                text: _isLoading ? 'Logging in...' : 'Login',
+                onTap: _isLoading ? null : login,
+              ),
+
               const SizedBox(height: 10),
+              // Register link
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -113,11 +159,12 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                   GestureDetector(
-                      onTap: widget.onTap,
-                      child: Text(
-                        "Register Here",
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ))
+                    onTap: widget.onTap,
+                    child: const Text(
+                      " Register Here",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
                 ],
               ),
             ],

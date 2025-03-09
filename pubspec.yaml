@@ -30,6 +30,8 @@ dependencies:
   timezone: ^0.10.0
   permission_handler: ^11.4.0
   app_settings: ^5.2.0
+  shared_preferences: ^2.5.2
+  smooth_page_indicator: ^1.2.1
 
 
 
@@ -43,3 +45,6 @@ flutter:
 
   assets:
     - .env
+    - assests/images/
+    - assests/fonts/
+    

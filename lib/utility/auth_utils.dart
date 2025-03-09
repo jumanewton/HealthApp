@@ -5,8 +5,8 @@ class AuthUtils {
     try {
       return await FirebaseAuth.instance
           .createUserWithEmailAndPassword(email: email, password: password);
-    } on FirebaseAuthException catch (e) {
-      throw e;
+    } on FirebaseAuthException {
+      rethrow;
     }
   }
 }
