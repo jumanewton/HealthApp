@@ -8,9 +8,9 @@ import 'package:healthmate/pages/health_records_page.dart';
 import 'package:healthmate/pages/health_insights_page.dart';
 
 class HomeContent extends StatelessWidget {
-  final String username;
+  final String fullName; // Accept fullName instead of firstName
 
-  const HomeContent({super.key, required this.username});
+  const HomeContent({super.key, required this.fullName}); // Updated constructor
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +18,7 @@ class HomeContent extends StatelessWidget {
       padding: const EdgeInsets.all(16.0),
       children: [
         // Welcome Message & Profile Overview
-        MyGreetingMessage(username: username),
+        MyGreetingMessage(fullName: fullName), // Pass fullName to MyGreetingMessage
 
         // Quick Access Tiles
         GridView.count(

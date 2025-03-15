@@ -50,4 +50,23 @@ class FirestoreUtils {
       return null;
     }
   }
+
+  static Future<String?> fetchFirstName(String userId) async {
+    try {
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+
+      if (userDoc.exists) {
+        String fullName = userDoc['fullName'] ??
+            ""; // Get fullName or default to empty string
+        return fullName.trim().split(" ")[0]; // Extract first name
+      }
+      return null;
+    } catch (e) {
+      print("Error fetching first name: $e");
+      return null;
+    }
+  }
 }

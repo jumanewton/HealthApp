@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:healthmate/components/my_drawer.dart';
@@ -7,8 +8,6 @@ import 'package:healthmate/pages/medication_page.dart';
 import 'package:healthmate/pages/calendar_page.dart';
 import 'package:healthmate/pages/chat_page.dart';
 import 'package:healthmate/pages/notifications_page.dart';
-import 'package:healthmate/utility/firestore_utils.dart';
-
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -19,12 +18,14 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
-  String username = "Loading..."; // Default value while fetching data
+  final ValueNotifier<String> fullNameNotifier =
+      ValueNotifier<String>("Loading..."); // Use ValueNotifier for fullName
   bool isLoading = true; // To track loading state
   final User? currentUser = FirebaseAuth.instance.currentUser;
 
   final List<Widget> _pages = [
-    const HomeContent(username: "Loading..."), // Placeholder, will be updated
+    // Placeholder, will be updated dynamically
+    const SizedBox.shrink(),
     const MedicationPage(),
     const CalendarPage(),
     const ChatPage(),
@@ -33,33 +34,40 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _fetchUsername();
+    _fetchFullName();
   }
 
-  Future<void> _fetchUsername() async {
+  Future<void> _fetchFullName() async {
     if (currentUser == null) return;
 
     try {
-      String? fetchedUsername = await FirestoreUtils.fetchUsername(currentUser!.email!);
-      if (fetchedUsername != null) {
+      // Fetch the full name from Firestore
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser!.uid)
+          .get();
+
+      if (userDoc.exists) {
+        String fullName =
+            userDoc['fullName'] ?? "User"; // Get fullName or default to "User"
+        fullNameNotifier.value = fullName; // Update ValueNotifier
         setState(() {
-          username = fetchedUsername;
           isLoading = false;
-          _pages[0] = HomeContent(username: username); // Update HomeContent with fetched username
         });
       } else {
+        fullNameNotifier.value =
+            "User"; // Default value if fullName is not found
         setState(() {
-          username = "User not found";
           isLoading = false;
         });
       }
     } catch (e) {
+      fullNameNotifier.value = "User"; // Fallback value in case of an error
       setState(() {
-        username = "Error fetching username";
         isLoading = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to fetch username: $e")),
+        SnackBar(content: Text("Failed to fetch full name: $e")),
       );
     }
   }
@@ -100,7 +108,17 @@ class _HomePageState extends State<HomePage> {
           ? const MyLoadingIndicator()
           : IndexedStack(
               index: _selectedIndex,
-              children: _pages,
+              children: [
+                // Use ValueListenableBuilder to dynamically update HomeContent
+                ValueListenableBuilder<String>(
+                  valueListenable: fullNameNotifier,
+                  builder: (context, fullName, child) {
+                    return HomeContent(
+                        fullName: fullName); // Pass fullName to HomeContent
+                  },
+                ),
+                ..._pages.sublist(1), // Include other pages
+              ],
             ),
       bottomNavigationBar: BottomNavigationBar(
         items: const [

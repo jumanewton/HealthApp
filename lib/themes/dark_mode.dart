@@ -8,8 +8,7 @@ final ThemeData darkMode = ThemeData(
     secondary: Colors.teal.shade700, // Soothing accent color for buttons
     inversePrimary: Colors.grey.shade300,
     onPrimary: Colors.white,  // Ensures text/icons are visible
-    onSecondary: Colors.white,
-    background: Colors.black,  // Dark mode-friendly background
+    onSecondary: Colors.white,  // Dark mode-friendly background
   ),
   textTheme: ThemeData.dark().textTheme.apply(
         bodyColor: Colors.grey.shade200, // Softer than pure white

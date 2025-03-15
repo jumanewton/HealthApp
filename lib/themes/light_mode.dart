@@ -6,8 +6,7 @@ final ThemeData lightMode = ThemeData(
     surface: Colors.white, // Clean and fresh background
     primary: Colors.blueGrey.shade100, // Soft, calming color
     secondary: Colors.teal.shade400, // Medical-themed accent color
-    inversePrimary: Colors.grey.shade900,
-    background: Colors.grey.shade100, // Subtle contrast for backgrounds
+    inversePrimary: Colors.grey.shade900, // Subtle contrast for backgrounds
     onPrimary: Colors.black, // Ensures readability on primary colors
     onSecondary: Colors.white, // Good contrast for secondary elements
   ),

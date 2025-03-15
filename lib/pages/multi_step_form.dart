@@ -22,28 +22,34 @@ class _MultiStepFormState extends State<MultiStepForm> {
   String _emergencyContact = '';
   String _healthRecords = '';
 
+  // Form Key for validation
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Complete Your Profile"),
       ),
-      body: PageView(
-        controller: _pageController,
-        physics: const NeverScrollableScrollPhysics(), // Disable swipe
-        children: [
-          // Step 1: Personal Details
-          _buildPersonalDetailsStep(),
+      body: Form(
+        key: _formKey,
+        child: PageView(
+          controller: _pageController,
+          physics: const NeverScrollableScrollPhysics(), // Disable swipe
+          children: [
+            // Step 1: Personal Details
+            _buildPersonalDetailsStep(),
 
-          // Step 2: Medication Details
-          _buildMedicationDetailsStep(),
+            // Step 2: Medication Details
+            _buildMedicationDetailsStep(),
 
-          // Step 3: Emergency Contact
-          _buildEmergencyContactStep(),
+            // Step 3: Emergency Contact
+            _buildEmergencyContactStep(),
 
-          // Step 4: Health Records
-          _buildHealthRecordsStep(),
-        ],
+            // Step 4: Health Records
+            _buildHealthRecordsStep(),
+          ],
+        ),
       ),
       bottomNavigationBar: BottomAppBar(
         child: Padding(
@@ -67,15 +73,19 @@ class _MultiStepFormState extends State<MultiStepForm> {
               ElevatedButton(
                 onPressed: () {
                   if (_currentStep < 3) {
-                    _pageController.nextPage(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeIn,
-                    );
-                    setState(() {
-                      _currentStep++;
-                    });
+                    if (_formKey.currentState!.validate()) {
+                      _pageController.nextPage(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeIn,
+                      );
+                      setState(() {
+                        _currentStep++;
+                      });
+                    }
                   } else {
-                    _submitForm();
+                    if (_formKey.currentState!.validate()) {
+                      _submitForm();
+                    }
                   }
                 },
                 child: Text(_currentStep == 3 ? "Submit" : "Next"),
@@ -95,6 +105,12 @@ class _MultiStepFormState extends State<MultiStepForm> {
         children: [
           TextFormField(
             decoration: const InputDecoration(labelText: "Name"),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return "Please enter your name";
+              }
+              return null;
+            },
             onChanged: (value) {
               setState(() {
                 _name = value;
@@ -104,6 +120,15 @@ class _MultiStepFormState extends State<MultiStepForm> {
           TextFormField(
             decoration: const InputDecoration(labelText: "Age"),
             keyboardType: TextInputType.number,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return "Please enter your age";
+              }
+              if (int.tryParse(value) == null) {
+                return "Please enter a valid age";
+              }
+              return null;
+            },
             onChanged: (value) {
               setState(() {
                 _age = int.tryParse(value) ?? 0;
@@ -118,6 +143,12 @@ class _MultiStepFormState extends State<MultiStepForm> {
                 child: Text(value),
               );
             }).toList(),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return "Please select your gender";
+              }
+              return null;
+            },
             onChanged: (value) {
               setState(() {
                 _gender = value ?? '';
@@ -137,6 +168,12 @@ class _MultiStepFormState extends State<MultiStepForm> {
         children: [
           TextFormField(
             decoration: const InputDecoration(labelText: "Medication"),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return "Please enter your medication";
+              }
+              return null;
+            },
             onChanged: (value) {
               setState(() {
                 _medication = value;
@@ -156,6 +193,12 @@ class _MultiStepFormState extends State<MultiStepForm> {
         children: [
           TextFormField(
             decoration: const InputDecoration(labelText: "Emergency Contact"),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return "Please enter an emergency contact";
+              }
+              return null;
+            },
             onChanged: (value) {
               setState(() {
                 _emergencyContact = value;
@@ -175,6 +218,12 @@ class _MultiStepFormState extends State<MultiStepForm> {
         children: [
           TextFormField(
             decoration: const InputDecoration(labelText: "Health Records"),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return "Please enter your health records";
+              }
+              return null;
+            },
             onChanged: (value) {
               setState(() {
                 _healthRecords = value;
@@ -188,29 +237,35 @@ class _MultiStepFormState extends State<MultiStepForm> {
 
   // Submit Form to Firestore
   void _submitForm() async {
-    final userData = {
-      'name': _name,
-      'age': _age,
-      'gender': _gender,
-      'medication': _medication,
-      'emergencyContact': _emergencyContact,
-      'healthRecords': _healthRecords,
-    };
+    if (_formKey.currentState!.validate()) {
+      final userData = {
+        'name': _name,
+        'age': _age,
+        'gender': _gender,
+        'medication': _medication,
+        'emergencyContact': _emergencyContact,
+        'healthRecords': _healthRecords,
+        'updatedAt': FieldValue.serverTimestamp(), // Add a timestamp
+      };
 
-    try {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.userId)
-          .set(userData);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Profile updated successfully!")),
-      );
-      // Redirect to home page
-      Navigator.pushReplacementNamed(context, '/home_page');
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
+      try {
+        // Update the existing user document
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.userId)
+            .update(userData);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Profile updated successfully!")),
+        );
+
+        // Redirect to home page
+        Navigator.pushReplacementNamed(context, '/home_page');
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e")),
+        );
+      }
     }
   }
 }

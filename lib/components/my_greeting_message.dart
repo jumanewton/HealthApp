@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
 
 class MyGreetingMessage extends StatelessWidget {
-  final String username;
+  final String fullName; // Accept fullName instead of firstName
 
-  const MyGreetingMessage({super.key, required this.username});
+  const MyGreetingMessage({super.key, required this.fullName});
 
+  // Method to extract the first name from the full name
+  String getFirstName() {
+    if (fullName.isEmpty) {
+      return "User"; // Fallback value if fullName is empty
+    }
+    return fullName.trim().split(" ")[0];
+  }
+
+  // Method to get the appropriate greeting based on the time of day
   String getGreeting() {
     final hour = DateTime.now().hour;
     if (hour < 12) {
@@ -22,7 +31,7 @@ class MyGreetingMessage extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "${getGreeting()}, $username!",
+          "${getGreeting()}, ${getFirstName()}!", // Use extracted first name
           style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
