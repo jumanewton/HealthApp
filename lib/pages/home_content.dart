@@ -6,6 +6,7 @@ import 'package:healthmate/pages/emergency_contact_page.dart';
 import 'package:healthmate/pages/symptom_checker_page.dart';
 import 'package:healthmate/pages/health_records_page.dart';
 import 'package:healthmate/pages/health_insights_page.dart';
+import 'package:healthmate/screens/medication_page.dart';
 
 class HomeContent extends StatelessWidget {
   final String fullName; // Accept fullName instead of firstName
@@ -37,7 +38,7 @@ class HomeContent extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const MedicationPage(),
+                    builder: (context) => const MedicationsPage(),
                   ),
                 );
               },

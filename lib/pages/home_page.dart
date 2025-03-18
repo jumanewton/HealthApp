@@ -8,6 +8,7 @@ import 'package:healthmate/pages/medication_page.dart';
 import 'package:healthmate/pages/calendar_page.dart';
 import 'package:healthmate/pages/chat_page.dart';
 import 'package:healthmate/pages/notifications_page.dart';
+import 'package:healthmate/screens/medication_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -26,7 +27,7 @@ class _HomePageState extends State<HomePage> {
   final List<Widget> _pages = [
     // Placeholder, will be updated dynamically
     const SizedBox.shrink(),
-    const MedicationPage(),
+    const MedicationsPage(),
     const CalendarPage(),
     const ChatPage(),
   ];
