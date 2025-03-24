@@ -1,8 +1,6 @@
 // lib/screens/medication_page.dart
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../models/medication.dart';
 import '../services/notification_service.dart';
 import '../services/auth_service.dart';

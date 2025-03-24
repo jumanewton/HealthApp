@@ -4,11 +4,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:healthmate/components/my_drawer.dart';
 import 'package:healthmate/components/my_loading_indicator.dart';
 import 'package:healthmate/pages/home_content.dart'; // Import the HomeContent widget
-import 'package:healthmate/pages/medication_page.dart';
 import 'package:healthmate/pages/calendar_page.dart';
 import 'package:healthmate/pages/chat_page.dart';
-import 'package:healthmate/pages/notifications_page.dart';
+// import 'package:healthmate/pages/notifications_page.dart';
 import 'package:healthmate/screens/medication_page.dart';
+import 'package:healthmate/screens/notifications_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:healthmate/auth/login_or_register.dart';
 import 'package:healthmate/pages/calendar_page.dart';
 import 'package:healthmate/pages/emergency_contact_page.dart';
@@ -23,6 +22,7 @@ class AppRoutes {
     '/notifications_page': (context) => const NotificationsPage(),
     '/calendar_page': (context) => const CalendarPage(),
     '/onboarding': (context) => const OnboardingScreen(),
+    
     
   };
 }
