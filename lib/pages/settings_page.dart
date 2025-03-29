@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:healthmate/services/auth_service.dart';
+import 'package:healthmate/services/theme_provider.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 
@@ -41,7 +44,8 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _pickImage() async {
-    final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
+    final pickedFile =
+        await ImagePicker().pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
         _profilePicture = pickedFile.path;
@@ -92,7 +96,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 radius: 50,
                 backgroundImage: _profilePicture != null
                     ? FileImage(File(_profilePicture!)) as ImageProvider
-                    : const AssetImage('assets/images/profile1.png'),
+                    : const AssetImage('assests/images/profile1.png'),
               ),
             ),
           ),
@@ -115,19 +119,73 @@ class _SettingsPageState extends State<SettingsPage> {
             onTap: _changePassword,
           ),
 
-          // Modify Emergency Contacts
-          ListTile(
-            leading: const Icon(Icons.phone),
-            title: const Text('Emergency Contacts'),
-            onTap: () => Navigator.pushNamed(context, '/emergency_contacts'),
-          ),
+          // Logout
 
+          ListTile(
+            leading: const Icon(Icons.logout),
+            title: const Text('Logout'),
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Logout?'),
+                  content: const Text('Are you sure you want to sign out?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        await AuthService().signOut();
+                        Navigator.pushReplacementNamed(context, '/login');
+                      },
+                      child: const Text('Logout'),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          // const SizedBox(height: 20),
+
+          ListTile(
+            leading: const Icon(Icons.delete),
+            title: const Text('Delete Account'),
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Delete Account?'),
+                  content:
+                      const Text('This will permanently erase all your data.'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        await AuthService().deleteAccount();
+                        Navigator.pushReplacementNamed(context, '/login');
+                      },
+                      child: const Text('Delete'),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const Divider(),
+          const SizedBox(height: 20),
           // Theme Toggle
           SwitchListTile(
             title: const Text('Dark Mode'),
             secondary: const Icon(Icons.dark_mode),
-            value: _isDarkMode,
-            onChanged: _toggleTheme,
+            value: Provider.of<ThemeProvider>(context).isDarkMode,
+            onChanged: (value) =>
+                Provider.of<ThemeProvider>(context, listen: false)
+                    .toggleTheme(value),
           ),
         ],
       ),

@@ -1,40 +1,68 @@
+// screens/emergency_contact_page.dart
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import '../models/emergency_contact.dart';
+import '../services/emergency_contact_service.dart';
+import '../widgets/add_contact_dialog.dart';
+import '../widgets/contact_list_item.dart';
 
-class EmergencyContactPage extends StatelessWidget {
+class EmergencyContactPage extends StatefulWidget {
   const EmergencyContactPage({super.key});
 
-  // Dummy data for emergency contacts (replace with Firebase data)
-  final List<Map<String, String>> emergencyContacts = const [
-    {
-      'name': 'Dr. Smith',
-      'phone': '+1234567890',
-      'relationship': 'Primary Care Physician',
-    },
-    {
-      'name': 'Jane Doe',
-      'phone': '+0987654321',
-      'relationship': 'Spouse',
-    },
-  ];
+  @override
+  State<EmergencyContactPage> createState() => _EmergencyContactPageState();
+}
 
-  // Function to launch a phone call
-  Future<void> _makePhoneCall(String phoneNumber) async {
-    final Uri phoneUri = Uri(scheme: 'tel', path: phoneNumber);
-    if (await canLaunch(phoneUri.toString())) {
-      await launch(phoneUri.toString());
-    } else {
-      throw 'Could not launch phone call';
-    }
+class _EmergencyContactPageState extends State<EmergencyContactPage> {
+  final EmergencyContactService _contactService = EmergencyContactService();
+
+  void _showAddContactDialog([EmergencyContact? contactToEdit]) {
+    showDialog(
+      context: context,
+      builder: (context) => AddContactDialog(
+        contactToEdit: contactToEdit,
+        onAddContact: (contact) async {
+          try {
+            if (contact.id == null) {
+              await _contactService.addContact(contact);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Contact added successfully')),
+                );
+              }
+            } else {
+              await _contactService.updateContact(contact);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Contact updated successfully')),
+                );
+              }
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Error: $e')),
+              );
+            }
+          }
+        },
+      ),
+    );
   }
 
-  // Function to send an SMS
-  Future<void> _sendSms(String phoneNumber) async {
-    final Uri smsUri = Uri(scheme: 'sms', path: phoneNumber);
-    if (await canLaunch(smsUri.toString())) {
-      await launch(smsUri.toString());
-    } else {
-      throw 'Could not launch SMS';
+  Future<void> _deleteContact(String contactId) async {
+    try {
+      await _contactService.deleteContact(contactId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Contact deleted')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error deleting contact: $e')),
+        );
+      }
     }
   }
 
@@ -44,38 +72,71 @@ class EmergencyContactPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Emergency Contacts'),
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16.0),
-        itemCount: emergencyContacts.length,
-        itemBuilder: (context, index) {
-          final contact = emergencyContacts[index];
-          return Card(
-            margin: const EdgeInsets.only(bottom: 16.0),
-            child: ListTile(
-              leading: const Icon(Icons.person, size: 40),
-              title: Text(contact['name']!),
-              subtitle: Text(contact['relationship']!),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
+      body: StreamBuilder<List<EmergencyContact>>(
+        stream: _contactService.getContactsStream(),
+        builder: (context, snapshot) {
+          // Loading state
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          
+          // Error state
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.phone, color: Colors.green),
-                    onPressed: () => _makePhoneCall(contact['phone']!),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.message, color: Colors.blue),
-                    onPressed: () => _sendSms(contact['phone']!),
+                  Text('Error: ${snapshot.error}'),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => setState(() {}),
+                    child: const Text('Retry'),
                   ),
                 ],
               ),
-            ),
+            );
+          }
+          
+          // No data or empty data
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    'No emergency contacts added yet',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _showAddContactDialog,
+                    child: const Text('Add Emergency Contact'),
+                  ),
+                ],
+              ),
+            );
+          }
+          
+          // Data available
+          final contacts = snapshot.data!;
+          
+          return ListView.builder(
+            padding: const EdgeInsets.all(16.0),
+            itemCount: contacts.length,
+            itemBuilder: (context, index) {
+              final contact = contacts[index];
+              
+              return ContactListItem(
+                contact: contact,
+                onDelete: _deleteContact,
+                onEdit: _showAddContactDialog,
+              );
+            },
           );
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Navigate to Add Emergency Contact Page
-        },
+        onPressed: _showAddContactDialog,
         child: const Icon(Icons.add),
       ),
     );

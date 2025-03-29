@@ -1,54 +1,11 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'dart:async';
 
-class OllamaService {
-  final String baseUrl;
+import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
-  OllamaService({this.baseUrl = 'http://127.0.0.1:11434/api/generate'});
-
-  Future<String> generateMedicalAdvice(String symptoms) async {
-    try {
-      final prompt = '''
-You are a medical assistant providing preliminary advice based on symptoms.
-Patient reported symptoms: $symptoms
-
-Please provide a structured response with:
-1. Possible conditions (list 2-3 most likely, with brief explanations)
-2. Recommended immediate actions (bullet points)
-3. Red flags that indicate urgent care is needed
-4. General advice on when to seek professional medical help
-
-Format your response in clear markdown with appropriate headings.
-Important: Emphasize prominently that this is not a definitive diagnosis and professional medical consultation is always recommended.
-''';
-
-      final response = await http.post(
-        Uri.parse(baseUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'model': 'meditron',
-          'prompt': prompt,
-          'stream': false,
-          'temperature': 0.7
-        }),
-      ).timeout(const Duration(seconds: 30));
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = jsonDecode(response.body);
-        return responseData['response'] ?? 'Unable to generate medical advice.';
-      } else {
-        throw Exception('API Error: ${response.statusCode}');
-      }
-    } on TimeoutException {
-      throw Exception('Request timed out. Please try again.');
-    } catch (e) {
-      throw Exception('Error: ${e.toString().replaceAll('Exception: ', '')}');
-    }
-  }
-}
+import '../services/groq_service1.dart';
+import '../widgets/disclaimer_card.dart';
 
 class SymptomCheckerPage extends StatefulWidget {
   const SymptomCheckerPage({super.key});
@@ -59,18 +16,52 @@ class SymptomCheckerPage extends StatefulWidget {
 
 class _SymptomCheckerPageState extends State<SymptomCheckerPage> {
   final TextEditingController _symptomController = TextEditingController();
-  final OllamaService _ollamaService = OllamaService();
+  GroqService? _groqService;
   String _symptomResult = '';
   bool _isLoading = false;
   bool _hasSubmitted = false;
+  StreamSubscription<String>? _responseSubscription;
+  DateTime? _lastUpdate;
+
+  static const _kThrottleDuration = Duration(milliseconds: 200);
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeGroqService();
+  }
+
+  void _initializeGroqService() {
+    final apiKey = dotenv.env['GROQ_API_KEY'];
+    
+    if (apiKey == null || apiKey.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Groq API Key is missing. Please configure your .env file.'),
+          backgroundColor: Colors.red,
+        )
+      );
+      return;
+    }
+    
+    setState(() {
+      _groqService = GroqService(apiKey: apiKey);
+    });
+  }
 
   @override
   void dispose() {
     _symptomController.dispose();
+    _responseSubscription?.cancel();
     super.dispose();
   }
 
-  void _checkSymptoms() async {
+  void _checkSymptoms() {
+    if (_groqService == null) {
+      _initializeGroqService();
+      return;
+    }
+
     final symptom = _symptomController.text.trim();
     if (symptom.isEmpty) {
       setState(() {
@@ -85,53 +76,42 @@ class _SymptomCheckerPageState extends State<SymptomCheckerPage> {
       _isLoading = true;
       _symptomResult = '';
       _hasSubmitted = true;
+      _lastUpdate = null;
     });
 
-    try {
-      final advice = await _ollamaService.generateMedicalAdvice(symptom);
-      setState(() {
-        _symptomResult = advice;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _symptomResult = '⚠️ ${e.toString().replaceAll('Exception: ', '')}';
-        _isLoading = false;
-      });
-    }
+    _responseSubscription?.cancel();
+
+    _responseSubscription = _groqService!.generateMedicalAdvice(symptom).listen(
+      (responseChunk) {
+        final now = DateTime.now();
+        if (_lastUpdate == null || now.difference(_lastUpdate!) > _kThrottleDuration) {
+          setState(() {
+            _symptomResult += responseChunk;
+            _lastUpdate = now;
+          });
+        } else {
+          _symptomResult += responseChunk;
+        }
+      },
+      onError: (e) {
+        setState(() {
+          _symptomResult = '⚠️ ${e.toString().replaceAll('Exception: ', '')}';
+          _isLoading = false;
+        });
+      },
+      onDone: () {
+        setState(() {
+          _isLoading = false;
+        });
+      },
+    );
   }
 
-  Widget _buildDisclaimer() {
-    return Card(
-      color: Colors.orange[50],
-      margin: const EdgeInsets.only(bottom: 20),
-      child: const Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.warning_amber, color: Colors.orange),
-                SizedBox(width: 8),
-                Text(
-                  'Important Disclaimer',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 8),
-            Text(
-              'This AI symptom checker provides preliminary information only and is not a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition.',
-              style: TextStyle(fontSize: 14),
-            ),
-          ],
-        ),
-      ),
-    );
+  void _stopGeneration() {
+    _responseSubscription?.cancel();
+    setState(() {
+      _isLoading = false;
+    });
   }
 
   @override
@@ -148,7 +128,7 @@ class _SymptomCheckerPageState extends State<SymptomCheckerPage> {
                 builder: (context) => AlertDialog(
                   title: const Text('About This Tool'),
                   content: const Text(
-                    'This AI-powered symptom checker helps you understand possible causes for your symptoms and when to seek medical attention. It uses the Meditron medical AI model for analysis.',
+                    'This AI-powered symptom checker helps you understand possible causes for your symptoms and when to seek medical attention. It uses the Llama3 medical AI model for analysis.',
                   ),
                   actions: [
                     TextButton(
@@ -167,7 +147,7 @@ class _SymptomCheckerPageState extends State<SymptomCheckerPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildDisclaimer(),
+            const DisclaimerCard(),
             Text(
               'Describe your symptoms:',
               style: Theme.of(context).textTheme.titleMedium,
@@ -195,19 +175,33 @@ class _SymptomCheckerPageState extends State<SymptomCheckerPage> {
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: _isLoading ? null : _checkSymptoms,
-              icon: _isLoading
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.medical_services),
-              label: Text(_isLoading ? 'Analyzing...' : 'Check Symptoms'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _isLoading || _groqService == null ? null : _checkSymptoms,
+                    icon: _isLoading
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.medical_services),
+                    label: Text(_isLoading ? 'Analyzing...' : 'Check Symptoms'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                  ),
+                ),
+                if (_isLoading)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8.0),
+                    child: TextButton(
+                      onPressed: _stopGeneration,
+                      child: const Text('Stop'),
+                    ),
+                  ),
+              ],
             ),
             if (_isLoading) const LinearProgressIndicator(),
             if (_hasSubmitted && _symptomResult.isEmpty && !_isLoading)
@@ -253,7 +247,6 @@ class _SymptomCheckerPageState extends State<SymptomCheckerPage> {
                         icon: const Icon(Icons.medical_services),
                         label: const Text('Find Nearby Clinics'),
                         onPressed: () {
-                          // Could integrate with maps API here
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text('This would open a clinic locator'),

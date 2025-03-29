@@ -1,29 +1,42 @@
 // lib/services/auth_service.dart
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // Check if user is logged in
+  // Keep this for backward compatibility (used in MedicationsPage)
   bool get isLoggedIn => _auth.currentUser != null;
 
-  // Get current user ID
-  String get userId {
-    final User? user = _auth.currentUser;
-    if (user == null) {
-      throw Exception('User not logged in');
-    }
-    return user.uid;
-  }
-
-  // Get current user
+  // Simplified user access
   User? get currentUser => _auth.currentUser;
 
-  // Sign out
-  Future<void> signOut() async {
-    await _auth.signOut();
+  // Get user ID (throws if not logged in)
+  String get userId {
+    if (!isLoggedIn) throw Exception('User not logged in');
+    return _auth.currentUser!.uid;
   }
 
-  // Listen to auth state changes
+  // Sign out with error handling
+  Future<void> signOut() async {
+    try {
+      await _auth.signOut();
+    } catch (e) {
+      debugPrint('Failed to sign out: $e');
+      rethrow;
+    }
+  }
+
+  // Delete account
+  Future<void> deleteAccount() async {
+    try {
+      await _auth.currentUser?.delete();
+    } catch (e) {
+      debugPrint('Failed to delete account: $e');
+      rethrow;
+    }
+  }
+
+  // Auth state stream
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 }

@@ -27,7 +27,7 @@ class _MedicationsPageState extends State<MedicationsPage> {
     _notificationService.init();
     _checkAuthState();
   }
-
+   
   void _checkAuthState() {
     if (!_authService.isLoggedIn) {
       Future.microtask(() =>
