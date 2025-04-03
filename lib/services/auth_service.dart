@@ -1,4 +1,3 @@
-// lib/services/auth_service.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
@@ -15,6 +14,11 @@ class AuthService {
   String get userId {
     if (!isLoggedIn) throw Exception('User not logged in');
     return _auth.currentUser!.uid;
+  }
+
+  // Get the current user (returns null if not logged in)
+  Future<User?> getCurrentUser() async {
+    return _auth.currentUser;
   }
 
   // Sign out with error handling

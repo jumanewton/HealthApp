@@ -1,127 +1,196 @@
 import 'package:flutter/material.dart';
+import 'package:healthmate/services/auth_service.dart';
 import 'package:provider/provider.dart';
-import '../models/notification_model.dart';
-import '../widgets/notification_card.dart';
 import '../providers/notification_provider.dart';
+import '../widgets/notification_card.dart';
+import '../models/notification_model.dart';
 
-class NotificationsPage extends StatelessWidget {
-  const NotificationsPage({super.key});
+class NotificationsScreen extends StatefulWidget {
+  const NotificationsScreen({Key? key}) : super(key: key);
+
+  @override
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  @override
+  // void initState() {
+  //   super.initState();
+  //   // Load notifications when screen opens
+  //   WidgetsBinding.instance.addPostFrameCallback((_) async {
+  //     // Get the user ID from your authentication service
+  //     final authService = AuthService();
+  //     final user = await authService.getCurrentUser();
+  //     final userId = user?.uid; // Get UID if user is logged in
+
+  //     if (userId != null) {
+  //       Provider.of<NotificationProvider>(context, listen: false).init();
+  //     }
+  //   });
+  // }
+  // @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final userId = (await AuthService().getCurrentUser())?.uid;
+      if (userId != null && mounted) {
+        Provider.of<NotificationProvider>(context, listen: false)
+            .init(userId: userId); // Pass userId here
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final notificationProvider = Provider.of<NotificationProvider>(context);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Notifications'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.done_all),
-            onPressed: () async {
-              await notificationProvider.markAllAsRead();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('All notifications marked as read')),
+          Consumer<NotificationProvider>(
+            builder: (context, provider, child) {
+              if (provider.notifications.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return PopupMenuButton(
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'mark_read',
+                    child: const Text('Mark all as read'),
+                    onTap: () => provider.markAllAsRead(),
+                  ),
+                  PopupMenuItem(
+                    value: 'clear',
+                    child: const Text('Clear all'),
+                    onTap: () => provider.clearAllNotifications(),
+                  ),
+                ],
+                icon: const Icon(Icons.more_vert),
               );
             },
-            tooltip: 'Mark all as read',
           ),
         ],
       ),
-      body: StreamBuilder<List<NotificationModel>>(
-        stream: notificationProvider.notifications,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+      body: Consumer<NotificationProvider>(
+        builder: (context, provider, child) {
+          if (provider.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-
-          final notifications = snapshot.data;
-          
-          if (notifications == null || notifications.isEmpty) {
-            return const Center(
+          if (provider.notifications.isEmpty) {
+            return Center(
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.notifications_off, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
+                  Icon(
+                    Icons.notifications_off_outlined,
+                    size: 64,
+                    color: Colors.grey[400],
+                  ),
+                  const SizedBox(height: 16),
                   Text(
                     'No notifications yet',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.grey[600],
+                    ),
                   ),
                 ],
               ),
             );
           }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16.0),
-            itemCount: notifications.length,
-            itemBuilder: (context, index) {
-              final notification = notifications[index];
-              return Dismissible(
-                key: Key(notification.id),
-                background: Container(
-                  color: Colors.red,
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.only(right: 20),
-                  child: const Icon(Icons.delete, color: Colors.white),
-                ),
-                direction: DismissDirection.endToStart,
-                confirmDismiss: (direction) async {
-                  return await showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Delete Notification'),
-                      content: const Text(
-                          'Are you sure you want to delete this notification?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(false),
-                          child: const Text('CANCEL'),
+          return RefreshIndicator(
+            onRefresh: () => provider.init(),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: ListView.builder(
+                itemCount: provider.notifications.length,
+                itemBuilder: (context, index) {
+                  final notification = provider.notifications[index];
+                  return Dismissible(
+                    key: Key(notification.id),
+                    direction: DismissDirection.endToStart,
+                    background: Container(
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.only(right: 20),
+                      color: Colors.red,
+                      child: const Icon(
+                        Icons.delete,
+                        color: Colors.white,
+                      ),
+                    ),
+                    onDismissed: (direction) {
+                      provider.deleteNotification(notification.id);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Notification deleted'),
+                          action: SnackBarAction(
+                            label: 'UNDO',
+                            onPressed: () {
+                              // This is where you would implement undo functionality
+                              // provider.init();
+                              provider.createNotification(
+                                title: notification.title,
+                                body: notification.body,
+                                type: notification.type,
+                                payload: notification.payload,
+                              );
+                            },
+                          ),
                         ),
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(true),
-                          child: const Text('DELETE'),
-                        ),
-                      ],
+                      );
+                    },
+                    child: NotificationCard(
+                      notification: notification,
+                      onTap: () {
+                        _handleNotificationTap(notification);
+                        
+                      },
                     ),
                   );
                 },
-                onDismissed: (direction) {
-                  notificationProvider.deleteNotification(notification.id);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Notification deleted')),
-                  );
-                },
-                child: NotificationCard(
-                  notification: notification,
-                  onTap: () {
-                    // Mark as read
-                    if (!notification.isRead) {
-                      notificationProvider.markAsRead(notification.id);
-                    }
-                    
-                    // Handle notification tap based on type
-                    if (notification.type == 'Medication' && 
-                        notification.additionalData != null &&
-                        notification.additionalData!.containsKey('medicationId')) {
-                      // Navigate to medication details
-                      // Navigator.push(...);
-                    } else if (notification.type == 'Health Tip' && 
-                              notification.additionalData != null) {
-                      // Navigate to health insight details
-                      // Navigator.push(...);
-                    }
-                  },
-                ),
-              );
-            },
+              ),
+            ),
           );
         },
       ),
     );
+  }
+
+  void _handleNotificationTap(NotificationModel notification) {
+    // Mark as read
+    if (!notification.isRead) {
+      Provider.of<NotificationProvider>(context, listen: false)
+          .markAsRead(notification.id);
+    }
+
+    // Navigate based on notification type/payload if needed
+    if (notification.payload != null) {
+      switch (notification.type) {
+        case NotificationType.medication:
+          // Navigate to medication details
+          Navigator.of(context).pushNamed('/medication', arguments: notification.payload);
+          break;
+        case NotificationType.appointment:
+          // Navigate to appointment details
+          Navigator.of(context).pushNamed('/appointment', arguments: notification.payload);
+          break;
+        default:
+          // Show a dialog with notification details
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Text(notification.title),
+              content: Text(notification.body),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Close'),
+                ),
+              ],
+            ),
+          );
+      }
+    }
   }
 }

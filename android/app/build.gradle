@@ -10,7 +10,7 @@ plugins {
 
 android {
     namespace = "com.example.healthmate"
-    compileSdk = 34 // Set to a valid SDK version (e.g., 34)
+    compileSdk = 35
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -20,7 +20,7 @@ android {
     }
 
     kotlinOptions {
-        jvmTarget = '17' // Use string '17' instead of JavaVersion.VERSION_17
+        jvmTarget = '17' 
     }
 
     defaultConfig {

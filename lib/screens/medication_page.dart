@@ -21,18 +21,50 @@ class _MedicationsPageState extends State<MedicationsPage> {
   final NotificationService _notificationService = NotificationService();
   late TimeOfDay _selectedTime;
 
+  // Search functionality variables
+  bool _isSearching = false;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
   @override
   void initState() {
     super.initState();
     _notificationService.init();
     _checkAuthState();
+
+    // Add listener to search controller
+    _searchController.addListener(_onSearchChanged);
   }
-   
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    setState(() {
+      _searchQuery = _searchController.text.toLowerCase();
+    });
+  }
+
   void _checkAuthState() {
     if (!_authService.isLoggedIn) {
       Future.microtask(() =>
           Navigator.pushReplacementNamed(context, '/login_register_page'));
     }
+  }
+
+  // Toggle search mode
+  void _toggleSearch() {
+    setState(() {
+      if (_isSearching) {
+        _searchController.clear();
+        _searchQuery = '';
+      }
+      _isSearching = !_isSearching;
+    });
   }
 
   Future<void> _addOrEditMedication({
@@ -70,21 +102,35 @@ class _MedicationsPageState extends State<MedicationsPage> {
       try {
         if (id == null) {
           final newId = await _medicationService.addMedication(medication);
-          await _notificationService.scheduleNotification(
+          await _notificationService.scheduleTimeNotification(
             id: newId.hashCode,
             title: 'Time to take ${medication.name}',
-            body: 'Dosage: ${medication.dosage}, Schedule: ${medication.schedule}',
+            body:
+                'Dosage: ${medication.dosage}, Schedule: ${medication.schedule}',
             time: medication.reminderTime,
+            payload: newId,
+            daily: true,
           );
         } else {
           await _medicationService.updateMedication(medication);
-          await _notificationService.scheduleNotification(
+          await _notificationService.cancelNotification(id.hashCode);
+
+          await _notificationService.scheduleTimeNotification(
             id: id.hashCode,
             title: 'Time to take ${medication.name}',
-            body: 'Dosage: ${medication.dosage}, Schedule: ${medication.schedule}',
+            body:
+                'Dosage: ${medication.dosage}, Schedule: ${medication.schedule}',
             time: medication.reminderTime,
+            payload: id,
+            daily: true,
           );
         }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  'Medication ${id == null ? 'added' : 'updated'} successfully')),
+        );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to save medication: $e')),
@@ -153,17 +199,40 @@ class _MedicationsPageState extends State<MedicationsPage> {
     );
   }
 
+  // Filter medications based on search query
+  List<Medication> _filterMedications(List<Medication> medications) {
+    if (_searchQuery.isEmpty) {
+      return medications;
+    }
+
+    return medications.where((med) {
+      return med.name.toLowerCase().contains(_searchQuery) ||
+          med.dosage.toLowerCase().contains(_searchQuery) ||
+          med.schedule.toLowerCase().contains(_searchQuery);
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Medications'),
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: 'Search medications...',
+                  border: InputBorder.none,
+                  hintStyle: TextStyle(color: Theme.of(context).hintColor),
+                ),
+                style: TextStyle(
+                    color: Theme.of(context).textTheme.titleLarge?.color),
+              )
+            : const Text('Medications'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              // TODO: Implement search functionality
-            },
+            icon: Icon(_isSearching ? Icons.close : Icons.search),
+            onPressed: _toggleSearch,
           ),
         ],
       ),
@@ -203,7 +272,27 @@ class _MedicationsPageState extends State<MedicationsPage> {
             );
           }
 
-          final medications = snapshot.data!;
+          // Filter medications based on search query
+          final medications = _filterMedications(snapshot.data!);
+
+          if (medications.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('No medications match your search.'),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      _searchController.clear();
+                    },
+                    child: const Text('Clear Search'),
+                  ),
+                ],
+              ),
+            );
+          }
+
           return ListView.builder(
             itemCount: medications.length,
             itemBuilder: (context, index) {
@@ -241,7 +330,14 @@ class _MedicationsPageState extends State<MedicationsPage> {
                   );
 
                   if (confirmed == true) {
+                    await _notificationService
+                        .cancelNotification(medication.id!.hashCode);
                     await _medicationService.deleteMedication(medication.id!);
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Medication deleted successfully')),
+                    );
                   }
                 },
               );

@@ -4,11 +4,11 @@ import 'package:healthmate/pages/calendar_page.dart';
 import 'package:healthmate/pages/emergency_contact_page.dart';
 import 'package:healthmate/pages/health_insights_page.dart';
 import 'package:healthmate/pages/home_page.dart';
-import 'package:healthmate/pages/notifications_page.dart';
 import 'package:healthmate/pages/onboarding_screens.dart';
 import 'package:healthmate/pages/profile_page.dart';
 import 'package:healthmate/pages/settings_page.dart';
 import 'package:healthmate/pages/symptom_checker_page.dart';
+import 'package:healthmate/screens/notifications_page.dart';
 
 class AppRoutes {
   static Map<String, WidgetBuilder> routes = {
@@ -19,7 +19,7 @@ class AppRoutes {
     '/emergency_contact_page': (context) => const EmergencyContactPage(),
     '/symptom_checker_page': (context) => const SymptomCheckerPage(),
     '/health_insights_page': (context) => const HealthInsightsPage(),
-    '/notifications_page': (context) => const NotificationsPage(),
+    '/notifications_page': (context) => const NotificationsScreen(),
     '/calendar_page': (context) => const CalendarPage(),
     '/onboarding': (context) => const OnboardingScreen(),
     
