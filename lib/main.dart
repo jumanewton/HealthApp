@@ -14,7 +14,7 @@ import 'package:healthmate/themes/light_mode.dart';
 import 'package:healthmate/services/groq_service.dart';
 import 'package:healthmate/providers/chat_provider.dart';
 import 'package:healthmate/repositories/notification_repository.dart';
-
+import 'package:healthmate/services/chat_storage_service.dart';  // Add this import
 
 import 'firebase_options.dart';
 import 'package:provider/provider.dart';
@@ -41,6 +41,9 @@ void main() async {
 
   // Create services that will be used across the app
   final groqService = GroqService(apiKey: dotenv.env['GROQ_API_KEY'] ?? '');
+  
+  // Initialize chat storage service
+  final chatStorageService = ChatStorageService();
 
   runApp(
     MultiProvider(
@@ -54,15 +57,22 @@ void main() async {
         // Initialize and provide NotificationProvider
        ChangeNotifierProvider(
           create: (_) => NotificationProvider(
-            // notificationService:,
             repository: notificationRepository,
             notificationService: notificationService,
           ),
         ),
+        
+        // Provide the ChatStorageService
+        Provider(
+          create: (_) => chatStorageService,
+        ),
 
-        // Chat Provider
+        // Updated Chat Provider with storage support
         ChangeNotifierProvider(
-          create: (_) => ChatProvider(groqService: groqService),
+          create: (_) => ChatProvider(
+            groqService: groqService,
+            storageService: chatStorageService,
+          ),
         ),
 
         // Theme Provider (Manages light/dark mode)

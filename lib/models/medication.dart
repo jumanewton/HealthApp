@@ -8,6 +8,7 @@ class Medication {
   final String dosage;
   final String schedule;
   final TimeOfDay reminderTime;
+  final DateTime? dateAdded;
 
   Medication({
     this.id,
@@ -15,12 +16,13 @@ class Medication {
     required this.dosage,
     required this.schedule,
     required this.reminderTime,
+    this.dateAdded,
   });
 
   // Convert Firestore document to Medication object
   factory Medication.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-    
+
     // Handle different data formats for reminderTime
     TimeOfDay reminderTime;
     if (data['reminderTime'] is Map) {
@@ -52,6 +54,9 @@ class Medication {
       dosage: data['dosage'] ?? '',
       schedule: data['schedule'] ?? '',
       reminderTime: reminderTime,
+      dateAdded: data['dateAdded'] != null
+          ? (data['dateAdded'] as Timestamp).toDate()
+          : null,
     );
   }
 
@@ -65,6 +70,7 @@ class Medication {
         'hour': reminderTime.hour,
         'minute': reminderTime.minute,
       },
+      'dateAdded': dateAdded != null ? Timestamp.fromDate(dateAdded!) : null,
     };
   }
 }

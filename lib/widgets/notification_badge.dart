@@ -9,12 +9,12 @@ class NotificationBadge extends StatelessWidget {
   final double badgeSize;
   
   const NotificationBadge({
-    Key? key,
+    super.key,
     required this.child,
     required this.onTap,
     this.badgeColor = Colors.red,
     this.badgeSize = 18,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

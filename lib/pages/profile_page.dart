@@ -46,6 +46,21 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
+  Widget _buildSectionTitle(BuildContext context, String title) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    return Text(
+      title.toUpperCase(),
+      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: isDarkMode
+                ? Colors.tealAccent[200]
+                : Theme.of(context).primaryColor,
+            letterSpacing: 1.2,
+          ),
+    );
+  }
+
   Widget _buildProfileContent(BuildContext context, Map<String, dynamic> user) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
@@ -173,18 +188,13 @@ class ProfilePage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Personal Information',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
+            _buildSectionTitle(context, 'Personal Information'),
             const SizedBox(height: 16),
             _buildInfoRow(context, 'Full Name', user['fullName'] ?? 'Not set'),
             _buildInfoRow(context, 'Date of Birth', user['dob'] ?? 'Not set'),
             _buildInfoRow(context, 'Gender', user['gender'] ?? 'Not set'),
             _buildInfoRow(context, 'Location', user['location'] ?? 'Not set'),
-            _buildInfoRow(context, 'Phone', user['phone'] ?? 'Not set'),
+            _buildInfoRow(context, 'Phone', user['phoneNumber'] ?? 'Not set'),
           ],
         ),
       ),
@@ -219,8 +229,11 @@ class ProfilePage extends StatelessWidget {
 
   Widget _buildHealthStatsSection(
       BuildContext context, Map<String, dynamic> user) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Card(
       elevation: 2,
+      color: isDarkMode ? Colors.grey[900] : null,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
@@ -229,22 +242,23 @@ class ProfilePage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Health Statistics',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
+            _buildSectionTitle(context, 'Health Stats'),
             const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildStatCircle(
-                    context, 'Height', '${user['height'] ?? '--'} cm'),
-                _buildStatCircle(
-                    context, 'Weight', '${user['weight'] ?? '--'} kg'),
-                _buildStatCircle(context, 'BMI', _calculateBMI(user)),
-              ],
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final itemWidth = constraints.maxWidth / 3 - 8;
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildStatItem(context, 'Height',
+                        '${user['height'] ?? '--'} cm', itemWidth),
+                    _buildStatItem(context, 'Weight',
+                        '${user['weight'] ?? '--'} kg', itemWidth),
+                    _buildStatItem(
+                        context, 'BMI', _calculateBMI(user), itemWidth),
+                  ],
+                );
+              },
             ),
           ],
         ),
@@ -252,35 +266,60 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  Widget _buildStatCircle(BuildContext context, String label, String value) {
-    return Column(
-      children: [
-        Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-            border: Border.all(
-              color: Theme.of(context).colorScheme.primary,
-              width: 2,
+  Widget _buildStatItem(
+      BuildContext context, String title, String value, double width) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    return SizedBox(
+      width: width,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: width * 0.8,
+            height: width * 0.8,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isDarkMode
+                  ? Colors.teal.withOpacity(0.2)
+                  : Theme.of(context).primaryColor.withOpacity(0.1),
+              border: Border.all(
+                color: isDarkMode
+                    ? Colors.tealAccent.withOpacity(0.5)
+                    : Theme.of(context).primaryColor.withOpacity(0.3),
+                width: 1.5,
+              ),
             ),
-          ),
-          child: Center(
-            child: Text(
-              value,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
+            child: Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Text(
+                    value,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: isDarkMode
+                              ? Colors.tealAccent[100]
+                              : Theme.of(context).primaryColor,
+                          fontSize: 18,
+                        ),
                   ),
+                ),
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-      ],
+          const SizedBox(height: 8),
+          Text(
+            title.toUpperCase(),
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                  letterSpacing: 1.1,
+                  fontSize: 10,
+                ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -304,12 +343,7 @@ class ProfilePage extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8.0),
-          child: Text(
-            'Recent Activity',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
+          child: _buildSectionTitle(context, 'Recent Activity'),
         ),
         const SizedBox(height: 8),
         SizedBox(

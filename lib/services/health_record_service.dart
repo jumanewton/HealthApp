@@ -1,7 +1,9 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:path/path.dart' as path;
 import '../models/health_record.dart';
 
 class HealthRecordService {
@@ -10,95 +12,118 @@ class HealthRecordService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // Get current user ID
-  String? get currentUserId => _auth.currentUser?.uid;
+  String get _userId => _auth.currentUser?.uid ?? '';
 
-  // Reference to the user's health records collection
-  CollectionReference<Map<String, dynamic>> get _healthRecordsCollection {
-    return _firestore
-        .collection('Users')
-        .doc(currentUserId)
-        .collection('healthRecords');
-  }
+  // Get reference to user's health records collection
+  CollectionReference get _recordsCollection => 
+      _firestore.collection('users').doc(_userId).collection('healthRecords');
 
   // Stream of health records for the current user
   Stream<List<HealthRecord>> getHealthRecords() {
-    if (currentUserId == null) {
-      return Stream.value([]);
-    }
-
-    return _healthRecordsCollection
-        .orderBy('timestamp', descending: true)
+    return _recordsCollection
+        .orderBy('dateAdded', descending: true)
         .snapshots()
-        .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => HealthRecord.fromFirestore(doc))
-          .toList();
-    });
+        .map((snapshot) => snapshot.docs
+            .map((doc) => HealthRecord.fromMap(doc.id, doc.data() as Map<String, dynamic>))
+            .toList());
   }
 
-  // Upload a health record document
-  Future<void> uploadHealthRecord({
-    required File file,
-    required String title,
-    required String type,
-  }) async {
-    if (currentUserId == null) {
-      throw Exception('User not authenticated');
-    }
-
-    // Generate a unique file name
-    final fileName = '${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
-    final Reference storageRef = _storage.ref().child('health_records/$currentUserId/$fileName');
-
+  // Add a new health record with file upload
+  Future<HealthRecord> addHealthRecord(
+    String title,
+    RecordType type,
+    File file,
+    {String? summary}
+  ) async {
     // Upload file to Firebase Storage
+    final fileName = '${DateTime.now().millisecondsSinceEpoch}_${path.basename(file.path)}';
+    final storageRef = _storage.ref().child('users/$_userId/healthRecords/$fileName');
+    
     final uploadTask = storageRef.putFile(file);
-    final snapshot = await uploadTask;
+    final snapshot = await uploadTask.whenComplete(() => null);
     final downloadUrl = await snapshot.ref.getDownloadURL();
-
-    // Add record to Firestore
-    await _healthRecordsCollection.add({
+    
+    // Create new record document
+    final docRef = await _recordsCollection.add({
       'title': title,
-      'date': DateTime.now().toString().substring(0, 10),
-      'type': type,
+      'type': type.toString().split('.').last,
       'url': downloadUrl,
-      'timestamp': FieldValue.serverTimestamp(),
+      'dateAdded': FieldValue.serverTimestamp(),
+      'summary': summary,
     });
+    
+    // Return the new health record
+    return HealthRecord(
+      id: docRef.id,
+      title: title,
+      type: type,
+      url: downloadUrl,
+      dateAdded: DateTime.now(),
+      summary: summary,
+    );
   }
 
-  // Update a health record (metadata only)
-  Future<void> updateRecord(HealthRecord record) async {
-    if (currentUserId == null) {
-      throw Exception('User not authenticated');
+  // Update an existing health record
+  Future<void> updateHealthRecord(HealthRecord record, {File? newFile}) async {
+    Map<String, dynamic> updateData = record.toMap();
+    
+    // If a new file is provided, upload it and update the URL
+    if (newFile != null) {
+      // Delete the old file if it exists
+      if (record.url.isNotEmpty) {
+        try {
+          await _storage.refFromURL(record.url).delete();
+        } catch (e) {
+          // Ignore errors if the file doesn't exist
+        }
+      }
+      
+      // Upload the new file
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${path.basename(newFile.path)}';
+      final storageRef = _storage.ref().child('users/$_userId/healthRecords/$fileName');
+      
+      final uploadTask = storageRef.putFile(newFile);
+      final snapshot = await uploadTask.whenComplete(() => null);
+      updateData['url'] = await snapshot.ref.getDownloadURL();
     }
-
-    await _healthRecordsCollection.doc(record.id).update({
-      'title': record.title,
-      'type': record.type,
-      // We don't update the URL here as that would require a new file upload
-    });
+    
+    // Update the record in Firestore
+    await _recordsCollection.doc(record.id).update(updateData);
   }
 
   // Delete a health record
   Future<void> deleteHealthRecord(String recordId) async {
-    if (currentUserId == null) {
-      throw Exception('User not authenticated');
-    }
-
-    // Get the record to find the storage URL
-    final recordDoc = await _healthRecordsCollection.doc(recordId).get();
-    final data = recordDoc.data();
+    // Get the record to retrieve the file URL
+    final docSnapshot = await _recordsCollection.doc(recordId).get();
+    final data = docSnapshot.data() as Map<String, dynamic>?;
+    final fileUrl = data?['url'] as String?;
     
-    if (data != null && data['url'] != null) {
-      // Delete from storage if URL exists
+    // Delete the file from Storage if it exists
+    if (fileUrl != null && fileUrl.isNotEmpty) {
       try {
-        final storageRef = FirebaseStorage.instance.refFromURL(data['url']);
-        await storageRef.delete();
+        await _storage.refFromURL(fileUrl).delete();
       } catch (e) {
-        print('Error deleting file from storage: $e');
+        // Ignore errors if the file doesn't exist
       }
     }
+    
+    // Delete the record document
+    await _recordsCollection.doc(recordId).delete();
+  }
 
-    // Delete from Firestore
-    await _healthRecordsCollection.doc(recordId).delete();
+  // Update record with a summary
+  Future<void> updateRecordSummary(String recordId, String summary) async {
+    await _recordsCollection.doc(recordId).update({'summary': summary});
+  }
+
+  // Get a single health record by ID
+  Future<HealthRecord?> getHealthRecord(String recordId) async {
+    final docSnapshot = await _recordsCollection.doc(recordId).get();
+    if (!docSnapshot.exists) return null;
+    
+    return HealthRecord.fromMap(
+      docSnapshot.id, 
+      docSnapshot.data() as Map<String, dynamic>
+    );
   }
 }

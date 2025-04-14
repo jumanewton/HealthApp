@@ -96,7 +96,7 @@ class CalendarRepository {
     final snapshot = await _eventsCollection
         .orderBy('title')
         .startAt([query])
-        .endAt([query + '\uf8ff'])
+        .endAt(['$query\uf8ff'])
         .get();
 
     return snapshot.docs.map((doc) {

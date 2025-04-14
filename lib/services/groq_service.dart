@@ -5,22 +5,27 @@ import 'dart:convert';
 import 'dart:async';
 
 class GroqService {
-  http.Client? _client;
-  bool _isCancelled = false;
-  final String _apiKey = dotenv.env['GROQ_API_KEY'] ?? ''; // Load API Key
+  final http.Client _client = http.Client();
+  StreamController<String>? _streamController;
+  final String _apiKey;
+  
+  GroqService({String? apiKey}) : _apiKey = apiKey ?? dotenv.env['GROQ_API_KEY'] ?? '';
 
-  GroqService({required String apiKey}) {
-    _client = http.Client();
-  }
-
-  Future<String> generateResponse(String message) async {
-    _isCancelled = false; // Reset cancel state before starting a new request
-
+  Stream<String> streamResponse(String message) {
+    // Create a new stream controller for this request
+    _streamController = StreamController<String>();
+    
     if (_apiKey.isEmpty) {
-      debugPrint('Error: API Key is missing');
-      return 'API Key is not set. Please check your configuration.';
+      _streamController!.add('API Key is not set. Please check your configuration.');
+      _streamController!.close();
+      return _streamController!.stream;
     }
 
+    _makeStreamingRequest(message);
+    return _streamController!.stream;
+  }
+
+  Future<void> _makeStreamingRequest(String message) async {
     try {
       final request = http.Request(
         'POST',
@@ -29,11 +34,11 @@ class GroqService {
 
       request.headers.addAll({
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer $_apiKey', // Use API Key from .env
+        'Authorization': 'Bearer $_apiKey',
       });
 
       request.body = jsonEncode({
-        'model': 'llama3-70b-8192', // Best available for healthcare
+        'model': 'llama3-70b-8192',
         'messages': [
           {
             'role': 'system',
@@ -45,6 +50,7 @@ class GroqService {
             - Always include: "This is not medical advice - consult a doctor for..."
             - For emergencies, say: "Please seek immediate medical attention"
             - Be empathetic and supportive
+            - Keep responses brief and to the point, unless detail is explicitly requested.
             '''
           },
           {
@@ -53,37 +59,62 @@ class GroqService {
           }
         ],
         'temperature': 0.5,
-        'max_tokens': 1024
+        'max_tokens': 512,
+        'stream': true  // Enable streaming responses
       });
 
-      final streamedResponse = await _client!.send(request);
+      final streamedResponse = await _client.send(request);
 
-      if (_isCancelled) {
-        debugPrint('Request was cancelled.');
-        return 'Request cancelled.';
-      }
-
-      final response = await http.Response.fromStream(streamedResponse);
-
-      if (response.statusCode == 200) {
-        final jsonResponse = jsonDecode(response.body);
-        return jsonResponse['choices'][0]['message']['content'].trim();
-      } else {
+      if (streamedResponse.statusCode != 200) {
+        final response = await http.Response.fromStream(streamedResponse);
         debugPrint('API Error: ${response.body}');
-        return 'Sorry, there was an error processing your request.';
+        _streamController?.add('Sorry, there was an error processing your request.');
+        _streamController?.close();
+        return;
       }
+
+      // Process the streaming response
+      streamedResponse.stream.transform(utf8.decoder).listen(
+        (String chunk) {
+          if (chunk.trim().isNotEmpty) {
+            // Format of each chunk is: data: {JSON}\n\n
+            for (final line in chunk.split('\n\n')) {
+              if (line.startsWith('data: ') && line != 'data: [DONE]') {
+                try {
+                  final jsonData = jsonDecode(line.substring(6));
+                  final content = jsonData['choices'][0]['delta']['content'] ?? '';
+                  if (content.isNotEmpty) {
+                    _streamController?.add(content);
+                  }
+                } catch (e) {
+                  debugPrint('Error parsing chunk: $e');
+                }
+              }
+            }
+          }
+        },
+        onDone: () {
+          _streamController?.close();
+        },
+        onError: (error) {
+          debugPrint('Stream error: $error');
+          _streamController?.addError(error);
+          _streamController?.close();
+        },
+        cancelOnError: true,
+      );
     } catch (e) {
-      if (_isCancelled) {
-        return 'Request cancelled.';
-      }
       debugPrint('Exception in API call: $e');
-      return 'An unexpected error occurred.';
+      _streamController?.add('An unexpected error occurred.');
+      _streamController?.close();
     }
   }
 
   void cancelRequest() {
-    _isCancelled = true;
-    _client?.close(); // Closes the client, cancelling all ongoing requests
-    _client = http.Client(); // Reinitialize client for future requests
+    _streamController?.close();
+  }
+
+  void dispose() {
+    _client.close();
   }
 }

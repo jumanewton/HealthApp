@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 class LastUpdateWidget extends StatefulWidget {
   final String userId;
 
-  const LastUpdateWidget({Key? key, required this.userId}) : super(key: key);
+  const LastUpdateWidget({super.key, required this.userId});
 
   @override
   _LastUpdateWidgetState createState() => _LastUpdateWidgetState();

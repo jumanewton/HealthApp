@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:healthmate/services/notification_service.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../models/calendar_event.dart';
 import '../services/calendar_repository.dart';
 import '../widgets/event_card.dart';
 
 class CalendarPage extends StatefulWidget {
-  const CalendarPage({Key? key}) : super(key: key);
+  const CalendarPage({super.key});
 
   @override
   State<CalendarPage> createState() => _CalendarPageState();
@@ -261,7 +260,7 @@ class _CalendarPageState extends State<CalendarPage> {
             if (event is MedicationEvent)
               ListTile(
                 title: const Text('Dosage'),
-                subtitle: Text((event as MedicationEvent).dosage),
+                subtitle: Text((event).dosage),
                 leading: const Icon(Icons.medication_outlined),
               ),
             const Divider(),
@@ -534,12 +533,11 @@ class _EventForm extends StatefulWidget {
   final Function(CalendarEvent) onSave;
 
   const _EventForm({
-    Key? key,
     required this.selectedDay,
     required this.category,
     this.existingEvent,
     required this.onSave,
-  }) : super(key: key);
+  });
 
   @override
   State<_EventForm> createState() => _EventFormState();

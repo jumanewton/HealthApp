@@ -5,7 +5,6 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:device_calendar/device_calendar.dart';
 import '../models/calendar_event.dart';
-import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();

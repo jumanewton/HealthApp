@@ -1,6 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:healthmate/helper/last_update.dart';
 import 'package:provider/provider.dart';
 import 'package:healthmate/components/my_greeting_message.dart';
 import 'package:healthmate/components/my_quick_access_tile.dart';
@@ -242,6 +241,9 @@ class NotificationsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Check if we're in dark mode
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -287,9 +289,11 @@ class NotificationsSection extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   alignment: Alignment.center,
-                  child: const Text(
+                  child: Text(
                     "No new notifications",
-                    style: TextStyle(color: Colors.grey),
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.grey[400] : Colors.grey,
+                    ),
                   ),
                 ),
               );
@@ -299,12 +303,30 @@ class NotificationsSection extends StatelessWidget {
               children: recentNotifications
                   .map((notification) => Card(
                         margin: const EdgeInsets.only(top: 8),
-                        color: notification.isRead ? null : Colors.blue.shade50,
+                        color: notification.isRead
+                            ? null
+                            : isDarkMode
+                                ? Colors.blue.shade900.withOpacity(0.3)
+                                : Colors.blue.shade50,
                         child: ListTile(
-                          leading: _getNotificationIcon(notification.type),
+                          leading: _getNotificationIcon(
+                              notification.type, isDarkMode),
                           title: Text(notification.title),
-                          subtitle: Text(notification.body),
-                          trailing: Text(_getTimeAgo(notification.timestamp)),
+                          subtitle: Text(
+                            notification.body,
+                            style: TextStyle(
+                              color: isDarkMode ? Colors.grey[300] : null,
+                            ),
+                          ),
+                          trailing: Text(
+                            _getTimeAgo(notification.timestamp),
+                            style: TextStyle(
+                              color: isDarkMode
+                                  ? Colors.grey[400]
+                                  : Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                          ),
                           onTap: () {
                             if (!notification.isRead) {
                               provider.markAsRead(notification.id);
@@ -353,17 +375,21 @@ class NotificationsSection extends StatelessWidget {
   }
 
   // Helper method to get icon based on notification type
-  Widget _getNotificationIcon(NotificationType type) {
+  Widget _getNotificationIcon(NotificationType type, bool isDarkMode) {
     switch (type) {
       case NotificationType.medication:
-        return const Icon(Icons.medication, color: Colors.blue);
+        return Icon(Icons.medication,
+            color: isDarkMode ? Colors.lightBlue : Colors.blue);
       case NotificationType.appointment:
-        return const Icon(Icons.calendar_today, color: Colors.purple);
+        return Icon(Icons.calendar_today,
+            color: isDarkMode ? Colors.purpleAccent : Colors.purple);
       case NotificationType.healthTip:
-        return const Icon(Icons.lightbulb, color: Colors.amber);
+        return Icon(Icons.lightbulb,
+            color: isDarkMode ? Colors.amber[300] : Colors.amber);
       case NotificationType.general:
       default:
-        return const Icon(Icons.notifications, color: Colors.grey);
+        return Icon(Icons.notifications,
+            color: isDarkMode ? Colors.grey[400] : Colors.grey);
     }
   }
 

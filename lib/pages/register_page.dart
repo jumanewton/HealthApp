@@ -1,13 +1,19 @@
+
+// File: lib/pages/register_page.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:healthmate/components/my_button.dart';
-import 'package:healthmate/components/my_textfield.dart';
+import 'package:healthmate/pages/home_page.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+
+// Import our custom widgets
+import 'package:healthmate/widgets/background_container.dart';
+import 'package:healthmate/widgets/profile_picture_selector.dart';
+import 'package:healthmate/widgets/styled_text_field.dart';
+import 'package:healthmate/widgets/styled_button.dart';
 import 'package:healthmate/helper/helper_functions.dart';
-import 'package:healthmate/pages/multi_step_form.dart';
-import 'package:image_picker/image_picker.dart'; // For profile picture
-import 'dart:io'; // For handling file paths
 
 class RegisterPage extends StatefulWidget {
   final void Function()? onTap;
@@ -18,18 +24,55 @@ class RegisterPage extends StatefulWidget {
   State<RegisterPage> createState() => _RegisterPageState();
 }
 
-class _RegisterPageState extends State<RegisterPage> {
+class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderStateMixin {
   // Text controllers
-  TextEditingController fullNameController = TextEditingController();
-  TextEditingController emailController = TextEditingController();
-  TextEditingController phoneNumberController = TextEditingController();
-  TextEditingController dateOfBirthController = TextEditingController();
-  TextEditingController genderController = TextEditingController();
-  TextEditingController passwordController = TextEditingController();
-  TextEditingController confirmPwController = TextEditingController();
-
+  final TextEditingController fullNameController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController phoneNumberController = TextEditingController();
+  final TextEditingController dateOfBirthController = TextEditingController();
+  final TextEditingController genderController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  final TextEditingController confirmPwController = TextEditingController();
+  
+  // Animation controller for transitions
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  
   // Profile picture
   File? _profilePicture;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeAnimations();
+  }
+
+  void _initializeAnimations() {
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeIn,
+      ),
+    );
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    fullNameController.dispose();
+    emailController.dispose();
+    phoneNumberController.dispose();
+    dateOfBirthController.dispose();
+    genderController.dispose();
+    passwordController.dispose();
+    confirmPwController.dispose();
+    super.dispose();
+  }
 
   // Date picker for Date of Birth
   Future<void> _selectDateOfBirth(BuildContext context) async {
@@ -39,7 +82,7 @@ class _RegisterPageState extends State<RegisterPage> {
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
     );
-    if (picked != null) {
+    if (picked != null && mounted) {
       setState(() {
         dateOfBirthController.text = "${picked.toLocal()}".split(' ')[0];
       });
@@ -47,30 +90,23 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   // Image picker for Profile Picture
-  Future<void> _pickProfilePicture() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-
-    if (pickedFile != null) {
-      setState(() {
-        _profilePicture = File(pickedFile.path);
-      });
-    }
+  void _updateProfilePicture(File image) {
+    setState(() {
+      _profilePicture = image;
+    });
   }
 
+  // Registration logic
   Future<void> register() async {
     // Show a loading circle
     showDialog(
       context: context,
-      builder: (context) {
-        return Center(
-          child: CircularProgressIndicator(),
-        );
-      },
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
     // Check if the passwords match
     if (passwordController.text != confirmPwController.text) {
+      if (!context.mounted) return;
       Navigator.pop(context); // Pop the loading indicator
       displayError(context, "Passwords do not match");
       return;
@@ -78,8 +114,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
     try {
       // Create the user
-      UserCredential userCredential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
+      UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: emailController.text,
         password: passwordController.text,
       );
@@ -87,22 +122,50 @@ class _RegisterPageState extends State<RegisterPage> {
       // Add the user to the Firestore database
       await createUserDocument(userCredential);
 
-      // Pop the loading indicator
-      if (context.mounted) Navigator.pop(context);
-
-      // Navigate to the MultiStepForm page
+      // Pop the loading indicator and navigate directly to HomePage
       if (context.mounted) {
+        Navigator.pop(context);
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => MultiStepForm(userId: userCredential.user!.uid),
+            builder: (context) => const HomePage(),
           ),
         );
       }
     } on FirebaseAuthException catch (e) {
-      Navigator.pop(context); // Pop the loading indicator
+      if (!context.mounted) return;
+      Navigator.pop(context);
       displayError(context, e.message!);
     }
+  }
+
+  // Create a user document in the Cloud Firestore database
+  Future<void> createUserDocument(UserCredential userCredential) async {
+    if (userCredential.user == null) return;
+    
+    // Upload profile picture to Firebase Storage (if selected)
+    String? profilePictureUrl;
+    if (_profilePicture != null) {
+      profilePictureUrl = await uploadImage(_profilePicture!);
+      if (profilePictureUrl == null && context.mounted) {
+        displayError(context, "Failed to upload profile picture");
+        return;
+      }
+    }
+
+    // Add user data to Firestore
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userCredential.user!.uid)
+        .set({
+      'fullName': fullNameController.text,
+      'email': userCredential.user!.email,
+      'phoneNumber': phoneNumberController.text,
+      'dateOfBirth': dateOfBirthController.text,
+      'gender': genderController.text,
+      'profilePictureUrl': profilePictureUrl,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
   }
 
   // Upload image to Firebase Storage
@@ -113,180 +176,160 @@ class _RegisterPageState extends State<RegisterPage> {
       UploadTask uploadTask = ref.putFile(imageFile);
 
       TaskSnapshot snapshot = await uploadTask;
-      String downloadUrl = await snapshot.ref.getDownloadURL();
-      return downloadUrl; // Save this URL in Firestore or Realtime Database
+      return await snapshot.ref.getDownloadURL();
     } catch (e) {
       print("Error uploading image: $e");
       return null;
     }
   }
 
-  // Create a user document in the Cloud Firestore database
-  Future<void> createUserDocument(UserCredential userCredential) async {
-    if (userCredential.user != null) {
-      // Upload profile picture to Firebase Storage (if selected)
-      String? profilePictureUrl;
-      if (_profilePicture != null) {
-        profilePictureUrl = await uploadImage(_profilePicture!);
-        if (profilePictureUrl == null) {
-          // Handle the case where the upload fails
-          displayError(context, "Failed to upload profile picture");
-          return;
-        }
-      }
-
-      // Add user data to Firestore
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userCredential.user!.uid)
-          .set({
-        'fullName': fullNameController.text,
-        'email': userCredential.user!.email,
-        'phoneNumber': phoneNumberController.text,
-        'dateOfBirth': dateOfBirthController.text,
-        'gender': genderController.text,
-        'profilePictureUrl': profilePictureUrl, // Optional
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      body: Center(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(25.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Logo
-                Icon(
-                  Icons.person,
-                  size: 80,
-                  color: Theme.of(context).colorScheme.inversePrimary,
-                ),
-                const SizedBox(height: 25),
-                // App name
-                Text(
-                  'H E A L T H M A T E',
-                  style: TextStyle(
-                    fontSize: 30,
-                  ),
-                ),
-                const SizedBox(height: 50),
-
-                // Full Name input
-                MyTextField(
-                    hintText: "Full Name",
-                    obscureText: false,
-                    controller: fullNameController),
-
-                // Email input
-                const SizedBox(height: 10),
-                MyTextField(
-                    hintText: "Email",
-                    obscureText: false,
-                    controller: emailController),
-
-                // Phone Number input
-                const SizedBox(height: 10),
-                MyTextField(
-                    hintText: "Phone Number",
-                    obscureText: false,
-                    controller: phoneNumberController),
-
-                // Date of Birth input with date picker
-                const SizedBox(height: 10),
-                TextField(
-                  controller: dateOfBirthController,
-                  decoration: InputDecoration(
-                    hintText: "Date of Birth (YYYY-MM-DD)",
-                    border: OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: Icon(Icons.calendar_today),
-                      onPressed: () => _selectDateOfBirth(context),
-                    ),
-                  ),
-                  readOnly: true, // Prevent manual input
-                ),
-
-                // Gender input
-                const SizedBox(height: 10),
-                MyTextField(
-                    hintText: "Gender",
-                    obscureText: false,
-                    controller: genderController),
-
-                // Password input
-                const SizedBox(height: 10),
-                MyTextField(
-                    hintText: "Password",
-                    obscureText: true,
-                    controller: passwordController),
-
-                // Confirm Password input
-                const SizedBox(height: 10),
-                MyTextField(
-                    hintText: "Confirm Password",
-                    obscureText: true,
-                    controller: confirmPwController),
-
-                // Profile Picture upload
-                const SizedBox(height: 10),
-                GestureDetector(
-                  onTap: _pickProfilePicture,
-                  child: Container(
-                    padding: EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.camera_alt),
-                        SizedBox(width: 10),
-                        Text(
-                          _profilePicture == null
-                              ? "Upload Profile Picture (Optional)"
-                              : "Profile Picture Selected",
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Register button
-                const SizedBox(height: 25),
-                MyButton(text: 'Register', onTap: register),
-
-                // Already have an account button
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Already have an account?',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.inversePrimary,
-                      ),
-                    ),
-                    GestureDetector(
-                        onTap: widget.onTap,
-                        child: Text(
-                          "Login Here",
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ))
-                  ],
-                ),
-              ],
+      body: BackgroundContainer(
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: Center(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(25.0),
+                child: _buildRegistrationCard(),
+              ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildRegistrationCard() {
+    return Card(
+      elevation: 5,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildHeader(),
+            const SizedBox(height: 30),
+            
+            ProfilePictureSelector(
+              onImageSelected: _updateProfilePicture,
+              currentImage: _profilePicture,
+            ),
+            const SizedBox(height: 30),
+            
+            _buildFormFields(),
+            const SizedBox(height: 30),
+            
+            StyledButton(
+              text: 'CREATE ACCOUNT',
+              onPressed: register,
+            ),
+            
+            _buildLoginLink(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Text(
+      'H E A L T H M A T E',
+      style: TextStyle(
+        fontSize: 30,
+        fontWeight: FontWeight.bold,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+    );
+  }
+
+  Widget _buildFormFields() {
+    return Column(
+      children: [
+        StyledTextField(
+          controller: fullNameController,
+          hintText: "Full Name",
+          prefixIcon: Icons.person,
+        ),
+        const SizedBox(height: 15),
+        
+        StyledTextField(
+          controller: emailController,
+          hintText: "Email",
+          prefixIcon: Icons.email,
+          keyboardType: TextInputType.emailAddress,
+        ),
+        const SizedBox(height: 15),
+        
+        StyledTextField(
+          controller: phoneNumberController,
+          hintText: "Phone Number",
+          prefixIcon: Icons.phone,
+          keyboardType: TextInputType.phone,
+        ),
+        const SizedBox(height: 15),
+        
+        StyledTextField(
+          controller: dateOfBirthController,
+          hintText: "Date of Birth",
+          prefixIcon: Icons.calendar_today,
+          readOnly: true,
+          suffixIcon: Icons.date_range,
+          onSuffixIconPressed: () => _selectDateOfBirth(context),
+        ),
+        const SizedBox(height: 15),
+        
+        StyledTextField(
+          controller: genderController,
+          hintText: "Gender",
+          prefixIcon: Icons.person_outline,
+        ),
+        const SizedBox(height: 15),
+        
+        StyledTextField(
+          controller: passwordController,
+          hintText: "Password",
+          prefixIcon: Icons.lock,
+          obscureText: true,
+        ),
+        const SizedBox(height: 15),
+        
+        StyledTextField(
+          controller: confirmPwController,
+          hintText: "Confirm Password",
+          prefixIcon: Icons.lock_outline,
+          obscureText: true,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLoginLink() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'Already have an account?',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.inversePrimary,
+            ),
+          ),
+          TextButton(
+            onPressed: widget.onTap,
+            child: Text(
+              "Login Here",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+          )
+        ],
       ),
     );
   }

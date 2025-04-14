@@ -166,24 +166,17 @@ class MedicationEvent extends CalendarEvent {
   final String medicationId;
 
   MedicationEvent({
-    required String title,
+    required super.title,
     required this.dosage,
-    required DateTime dateTime,
-    required String description,
+    required super.dateTime,
+    required super.description,
     required this.medicationId,
-    required RecurrencePattern recurrence,
-    String? id,
-    int? notificationId,
-    bool isCompleted = false,
+    required super.recurrence,
+    super.id,
+    super.notificationId,
+    super.isCompleted,
   }) : super(
-          id: id,
-          title: title,
-          description: description,
-          dateTime: dateTime,
           category: EventCategory.medication,
-          recurrence: recurrence,
-          notificationId: notificationId,
-          isCompleted: isCompleted,
         );
 
   @override
