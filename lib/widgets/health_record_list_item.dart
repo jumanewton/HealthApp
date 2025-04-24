@@ -117,7 +117,7 @@ class HealthRecordListItem extends StatelessWidget {
             ),
             
           // Action buttons
-          ButtonBar(
+          OverflowBar(
             alignment: MainAxisAlignment.end,
             children: [
               // Summarize button
@@ -153,10 +153,10 @@ class HealthRecordListItem extends StatelessWidget {
                             Navigator.pop(context);
                             onDelete();
                           },
-                          child: const Text('Delete'),
                           style: TextButton.styleFrom(
                             foregroundColor: Colors.red,
                           ),
+                          child: const Text('Delete'),
                         ),
                       ],
                     ),

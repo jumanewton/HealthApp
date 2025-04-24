@@ -17,7 +17,7 @@ class FilterStatusBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      color: backgroundColor ?? Theme.of(context).colorScheme.surfaceVariant,
+      color: backgroundColor ?? Theme.of(context).colorScheme.surfaceContainerHighest,
       child: Row(
         children: [
           Expanded(

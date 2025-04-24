@@ -5,7 +5,7 @@ import '../providers/chat_provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 class ConversationsPage extends StatelessWidget {
-  const ConversationsPage({Key? key}) : super(key: key);
+  const ConversationsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -70,8 +70,8 @@ class ConversationsPage extends StatelessWidget {
             MaterialPageRoute(builder: (_) => const ChatPage()),
           );
         },
-        child: const Icon(Icons.add),
         tooltip: 'New conversation',
+        child: const Icon(Icons.add),
       ),
     );
   }

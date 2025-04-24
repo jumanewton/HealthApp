@@ -5,46 +5,46 @@ import '../models/health_record.dart';
 
 class DocumentSummarizerService {
   late final GenerativeModel _model;
-  
+
   // Initialize with API key
   DocumentSummarizerService() {
     final apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
     _model = GenerativeModel(
-      model: 'gemini-pro-vision',
+      model: 'gemini-2.0-flash',
       apiKey: apiKey,
     );
   }
 
   /// Summarizes a health document based on its type and image data
-  Future<String> summarizeDocument(RecordType recordType, Uint8List imageBytes) async {
+  Future<String> summarizeDocument(
+      RecordType recordType, Uint8List imageBytes) async {
     try {
       // Create prompt based on document type
       final prompt = _createPromptForDocType(recordType);
-      
+
       // Create content parts (both text prompt and image)
       final content = [
         Content.text(prompt),
         Content.multi([
           TextPart(prompt),
-          DataPart('image/png', imageBytes),  // or 'image/jpeg' based on your image type
+          DataPart('image/png',
+              imageBytes), // or 'image/jpeg' based on your image type
         ]),
       ];
 
-      
       // Generate content
       final response = await _model.generateContent(content);
-      
-      
+
       if (response.text == null || response.text!.isEmpty) {
         return "Could not generate summary. Please try again.";
       }
-      
+
       return response.text!;
     } catch (e) {
       return "Error summarizing document: $e";
     }
   }
-  
+
   /// Creates appropriate prompts based on health record type
   String _createPromptForDocType(RecordType recordType) {
     switch (recordType) {

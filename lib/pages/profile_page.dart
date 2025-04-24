@@ -5,6 +5,7 @@ import 'package:healthmate/widgets/edit_profile.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
+import 'package:healthmate/components/my_greeting_message.dart';
 
 class ProfilePage extends StatelessWidget {
   ProfilePage({super.key});
@@ -61,35 +62,42 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileContent(BuildContext context, Map<String, dynamic> user) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          // Header with back button
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => Navigator.pop(context),
-              ),
-              const Spacer(),
-              Text(
-                'My Profile',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const Spacer(),
-              IconButton(
-                icon: const Icon(Icons.edit),
-                onPressed: () => _navigateToEditProfile(context),
-              ),
-            ],
-          ),
+ Widget _buildProfileContent(BuildContext context, Map<String, dynamic> user) {
+  final String fullName = user['fullName'] ?? 'User';
 
-          const SizedBox(height: 24),
+  return SingleChildScrollView(
+    padding: const EdgeInsets.all(16.0),
+    child: Column(
+      children: [
+        // Header with back button
+        Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pop(context),
+            ),
+            const Spacer(),
+            Text(
+              'My Profile',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const Spacer(),
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: () => _navigateToEditProfile(context),
+            ),
+          ],
+        ),
 
-          // Profile Picture Section
-          _buildProfilePictureSection(context, user),
+        const SizedBox(height: 24),
+        
+        // Add greeting message widget here
+        MyGreetingMessage(fullName: fullName),
+
+        // Profile Picture Section
+        _buildProfilePictureSection(context, user),
+
+        // Rest of your code remains the same...
 
           const SizedBox(height: 32),
 
@@ -161,7 +169,7 @@ class ProfilePage extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         Text(
-          user['username'] ?? 'No username',
+          user['fullName'] ?? 'No username',
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),

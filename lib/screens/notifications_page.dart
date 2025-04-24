@@ -14,21 +14,6 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
-  // void initState() {
-  //   super.initState();
-  //   // Load notifications when screen opens
-  //   WidgetsBinding.instance.addPostFrameCallback((_) async {
-  //     // Get the user ID from your authentication service
-  //     final authService = AuthService();
-  //     final user = await authService.getCurrentUser();
-  //     final userId = user?.uid; // Get UID if user is logged in
-
-  //     if (userId != null) {
-  //       Provider.of<NotificationProvider>(context, listen: false).init();
-  //     }
-  //   });
-  // }
-  // @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {

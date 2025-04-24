@@ -1,9 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
 import '../models/health_record.dart';
 import '../services/document_summarizer_service.dart';
 import '../services/health_record_service.dart';
