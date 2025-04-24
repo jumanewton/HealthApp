@@ -39,8 +39,9 @@ Android Studio or VSCode
 ## Setup Instructions
 
 # Clone the repository
--- git clone 
--- cd healthmate
+- git clone 
+- cd healthmate
+- add the .env file and edit the api keys
 
 # Get dependencies
 flutter pub get
