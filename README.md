@@ -80,9 +80,9 @@ Note: Does not replace medical professionals. Always consult a doctor for seriou
  Diet & nutrition suggestions
 
 👨‍💻 Author
-Newton – @yourusername
+Newton – @jumanewton
 Final Year Project | Maseno University
-Mobile App Lead, GDG on Campus Maseno
+Mobile App Lead, GDG on Campus Maseno 2024 Chapter
 
 📄 License
 
